@@ -35,6 +35,10 @@ body.touch.play #tc{display:block}
 .tb:active{background:#5a3a7acc}
 #bj{bottom:22%}#bd{bottom:8%;right:max(19%,calc(env(safe-area-inset-right) + 90px))}
 #bm{width:44px;height:44px;font-size:17px;bottom:44%}
+#rotate{display:none;position:fixed;inset:0;z-index:9;background:#080a19;color:#ffcc8a;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;font-size:17px;letter-spacing:.12em;line-height:1.7;text-transform:uppercase}
+#rotate b{font-size:64px;display:block;margin-bottom:16px;animation:rot 2.4s ease-in-out infinite}
+@keyframes rot{0%,20%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
+@media(orientation:portrait) and (pointer:coarse){#rotate{display:flex}}
 @media(max-width:700px),(max-height:500px){.hb{padding:5px 8px;font-size:11px}.panel{padding:16px}h1{margin:8px 0;font-size:clamp(30px,9vw,52px)}.sub{margin-bottom:8px;font-size:12px;line-height:1.5}.ctl{margin-top:10px}.rule{margin:10px auto}}
 </style></head><body>
 <div id="hud"><div class="top"><div class="hb"><small>CHAPTER</small><span id="world"></span></div><div class="hb"><small>SOUL CANDLES</small>♧ <span id="coins">000</span></div><div class="hb"><small>VITALITY</small><span id="hearts"></span></div><div class="hb"><small>THE HOUR</small><span id="time"></span></div></div><div id="toast"></div><div id="progress"><div id="fill"></div></div></div>
@@ -43,12 +47,15 @@ body.touch.play #tc{display:block}
 <button class="primary" id="start">Enter the Hollow ↗</button><button id="how">Controls &amp; lore</button>
 <div class="ctl"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · drag mouse or <kbd>Q</kbd><kbd>E</kbd> turn camera · <kbd>SPACE</kbd> jump (twice in air) · <kbd>SHIFT</kbd> dash · <kbd>M</kbd> mute</div></div></div>
 <div id="tc"><div id="joy"><div id="knob"></div></div><button class="tb" id="bj">↑</button><button class="tb" id="bd">✧</button><button class="tb" id="bm">♪</button></div>
+<div id="rotate"><b>⟳</b>Rotate your phone<br>to landscape to play</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (()=>{'use strict';
 const $=id=>document.getElementById(id);
 let rd;try{rd=new THREE.WebGLRenderer({antialias:true})}catch(e){document.body.insertAdjacentHTML('beforeend','<p style="position:fixed;inset:0;padding:40px;background:#000;z-index:9">WebGL is unavailable in this browser.</p>');return}
 const TOUCH=matchMedia('(pointer:coarse)').matches;if(TOUCH)document.body.classList.add('touch');rd.setPixelRatio(TOUCH?1:Math.min(devicePixelRatio,1.5));rd.shadowMap.enabled=true;document.body.prepend(rd.domElement);
+const portrait=matchMedia('(orientation:portrait) and (pointer:coarse)');
+function goFullscreen(){try{const e=document.documentElement;if(TOUCH&&!document.fullscreenElement&&e.requestFullscreen){e.requestFullscreen().then(()=>{if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('landscape').catch(()=>{})}).catch(()=>{})}}catch(_){}}
 const scene=new THREE.Scene(),cam=new THREE.PerspectiveCamera(62,1,.1,300);
 const rsz=()=>{rd.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.fov=cam.aspect<1?82:62;cam.updateProjectionMatrix()};addEventListener('resize',rsz);rsz();
 /* ---- procedural music (from the original, condensed) ---- */
@@ -115,7 +122,7 @@ function hud(){$('world').textContent=ch?'II · THE CURSED CATHEDRAL':'I · THE 
 function say(s){$('toast').textContent=s;$('toast').style.opacity=1;toastT=1.6}
 function panel(title,desc,btn,fn){mode='menu';document.body.classList.remove('play');$('hud').style.display='none';$('overlay').style.display='flex';$('panel').innerHTML=`<div class="eyebrow">THE HOLLOW CROWN · FIELD NOTES</div><h1>${title}</h1><p class="sub">${desc}</p><div class="rule"></div><button class="primary" id="act">${btn}</button>`;$('act').onclick=fn}
 function load(n){ch=n;build(n);const p=plats[0];P.position.set(p.x,p.y,p.z);pl.v.set(0,0,0);pl.inv=1.3;cy=0;left=n?200:150;hud()}
-function start(){document.body.classList.add('play');startMusic();coins=0;hearts=3;load(0);mode='play';$('overlay').style.display='none';$('hud').style.display='block'}
+function start(){document.body.classList.add('play');startMusic();goFullscreen();coins=0;hearts=3;load(0);mode='play';$('overlay').style.display='none';$('hud').style.display='block'}
 $('start').onclick=start;
 $('how').onclick=()=>panel('The old <span>rules</span>','On a phone: the left stick moves, drag the screen to turn the camera, ↑ jumps (again in the air) and ✧ dashes. On a keyboard: move with WASD or arrows, and drag the mouse (or Q and E) to turn the camera. SPACE jumps, and once more in the air. SHIFT dashes. Gather soul candles, leap onto the heads of shadow imps, and reach the violet gate. Falling into the mist costs a heart. Chapter II waits beyond.','Begin the ritual ↗',start);
 addEventListener('keydown',e=>{const k=e.key.toLowerCase();if([' ','arrowup','arrowdown','arrowleft','arrowright','shift'].includes(k))e.preventDefault();keys[k]=1;if(!e.repeat){if(k===' ')jt=.12;if(k==='shift')dashTap=true;if(k==='m')toggleMusic()}});
@@ -152,15 +159,15 @@ for(const c of cands){if(c.got)continue;c.m.position.y=c.y+Math.sin(t*2+c.ph)*.2
 if(Math.hypot(pp.x-gate.position.x,pp.z-gate.position.z)<2&&Math.abs(pp.y+.9-gate.position.y)<2.5){if(ch===0){coins+=5;load(1);say('THE CATHEDRAL OPENS · +5');sfx(200,800,.6,'triangle',.15)}else panel('The moon is <span>returned</span>',`You crossed the Haunted Wood and the Cursed Cathedral with ${coins} soul candles. Blackthorn’s gates fall silent… until next Halloween.`,'Play the tale again ↗',start)}
 $('fill').style.width=(reach/(plats.length-1)*100)+'%';if(toastT>0&&(toastT-=dt)<=0)$('toast').style.opacity=0;if(((left*10|0)%10)==0)$('time').textContent=Math.ceil(left)}
 /* ---- render loop ---- */
-function loop(now){const dt=Math.min(.05,(now-last)/1000||0);last=now;t+=dt;if(mode==='play')update(dt);else cy+=dt*.15;
-const v=pl.v,mv=Math.hypot(v.x,v.z);
-{let d=Math.atan2(pl.fx,pl.fz)-wm.rotation.y;d=Math.atan2(Math.sin(d),Math.cos(d));wm.rotation.y+=d*Math.min(1,dt*14)}
+function loop(now){const dt=Math.min(.05,(now-last)/1000||0);last=now;if(!portrait.matches){t+=dt;if(mode==='play')update(dt);else cy+=dt*.15}
+const dt2=portrait.matches?0:dt,v=pl.v,mv=Math.hypot(v.x,v.z);
+{let d=Math.atan2(pl.fx,pl.fz)-wm.rotation.y;d=Math.atan2(Math.sin(d),Math.cos(d));wm.rotation.y+=d*Math.min(1,dt2*14)}
 wm.position.y=pl.ground?Math.abs(Math.sin(t*14))*.07*Math.min(1,mv/4):0;boots[0].position.z=.05+Math.sin(t*14)*.12*Math.min(1,mv/4);boots[1].position.z=.05-Math.sin(t*14)*.12*Math.min(1,mv/4);cape.rotation.x=.25+Math.min(.5,mv*.05)+(pl.ground?0:.2);
 P.visible=!(pl.inv>0&&((t*14)|0)%2);ll.intensity=1.5+Math.sin(t*17)*.2+Math.sin(t*7)*.2;
-const tg=P.position.clone(),D=9,cp=Math.cos(pt);tg.y+=1.4;const want=new THREE.Vector3(tg.x+Math.sin(cy)*D*cp,tg.y+Math.sin(pt)*D,tg.z+Math.cos(cy)*D*cp);cam.position.lerp(want,1-Math.pow(.002,dt));cam.lookAt(tg.x,tg.y+.3,tg.z);
+const tg=P.position.clone(),D=9,cp=Math.cos(pt);tg.y+=1.4;const want=new THREE.Vector3(tg.x+Math.sin(cy)*D*cp,tg.y+Math.sin(pt)*D,tg.z+Math.cos(cy)*D*cp);cam.position.lerp(want,1-Math.pow(.002,dt2));cam.lookAt(tg.x,tg.y+.3,tg.z);
 sun.position.set(tg.x-15,tg.y+25,tg.z+10);sun.target.position.copy(tg);moon.position.set(tg.x-60,tg.y+55,tg.z-140);
-for(const q of parts)if(q.l>0){q.l-=dt;q.v.y-=14*dt;q.m.position.addScaledVector(q.v,dt);q.m.scale.setScalar(Math.max(.01,q.l/.6));if(q.l<=0)q.m.visible=false}
-const lp=lg.attributes.position;for(let i=0;i<160;i++){let y=lp.getY(i)-dt*.8;if(y<tg.y-8){y=tg.y+10;lp.setX(i,tg.x+rr(-25,25));lp.setZ(i,tg.z+rr(-25,25))}lp.setY(i,y);lp.setX(i,lp.getX(i)+Math.sin(t+i)*dt*.6)}lp.needsUpdate=true;
+for(const q of parts)if(q.l>0){q.l-=dt2;q.v.y-=14*dt2;q.m.position.addScaledVector(q.v,dt2);q.m.scale.setScalar(Math.max(.01,q.l/.6));if(q.l<=0)q.m.visible=false}
+const lp=lg.attributes.position;for(let i=0;i<160;i++){let y=lp.getY(i)-dt2*.8;if(y<tg.y-8){y=tg.y+10;lp.setX(i,tg.x+rr(-25,25));lp.setZ(i,tg.z+rr(-25,25))}lp.setY(i,y);lp.setX(i,lp.getX(i)+Math.sin(t+i)*dt2*.6)}lp.needsUpdate=true;
 gate.rotation.z=t*.5;gate.rotation.y=Math.sin(t*.4)*.3;rd.render(scene,cam);requestAnimationFrame(loop)}
 load(0);requestAnimationFrame(loop);
 })();
